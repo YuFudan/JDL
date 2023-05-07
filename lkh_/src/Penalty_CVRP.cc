@@ -1,0 +1,49 @@
+#include "LKH.h"
+#include "Segment.h"
+
+GainType Penalty_CVRP() {
+    static Node *StartRoute = 0;
+    Node *N, *CurrentRoute;
+    GainType DemandSum, DistanceSum, P = 0;
+
+    if (!StartRoute)
+        StartRoute = Depot;
+    if (StartRoute->Id > Dim_salesman)
+        StartRoute -= Dim_salesman;
+    N = StartRoute;
+    do {
+        int64_t Size = -1;
+        CurrentRoute = N;
+        DemandSum = 0;
+        do {
+            DemandSum += N->Demand;
+            Size++;
+        } while ((N = SUCC(N))->DepotId == 0);
+        if (MTSPMinSize >= 1 && Size < MTSPMinSize)
+            P += MTSPMinSize - Size;
+        if (Size > MTSPMaxSize)
+            P += Size - MTSPMaxSize;
+        if (DemandSum > Capacity &&
+            ((P += DemandSum - Capacity) > CurrentPenalty ||
+             (P == CurrentPenalty && CurrentGain <= 0))) {
+            StartRoute = CurrentRoute;
+            return CurrentPenalty + (CurrentGain > 0);
+        }
+        if (DistanceLimit != INFINITY) {
+            DistanceSum = 0;
+            N = CurrentRoute;
+            do {
+                DistanceSum += C(N, SUCC(N)) - N->Pi - SUCC(N)->Pi;
+                if (!N->DepotId)
+                    DistanceSum += N->ServiceTime;
+            } while ((N = SUCC(N))->DepotId == 0);
+            if (DistanceSum > DistanceLimit &&
+                ((P += DistanceSum - DistanceLimit) > CurrentPenalty ||
+                 (P == CurrentPenalty && CurrentGain <= 0))) {
+                StartRoute = CurrentRoute;
+                return CurrentPenalty + (CurrentGain > 0);
+            }
+        }
+    } while (N != StartRoute);
+    return P;
+}
